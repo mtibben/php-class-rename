@@ -1,0 +1,10 @@
+{
+    "require-dev": {
+        "phpunit/phpunit": "~4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mtibben\\PhpClassRename\\": ["src/", "tests/"]
+        }
+    }
+}
