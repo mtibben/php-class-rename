@@ -15,7 +15,7 @@ This is a work in progress, currently the code only extracts the classnames for 
 
 ## How it works
 
-`php-class-rename` searches a directory for php files. It builds a map of classnames, then determines the implied PSR-0 classname from the location of the files. It then rewrites the classname and other PHP code to use the implied PSR-0 class name.
+`php-class-rename` searches a directory for php files. It builds a map of classnames, then determines the implied PSR-4 classname from the location of the files. It then rewrites the classname and other PHP code to use the implied PSR-4 class name.
 
 So for example, if I have a PHP class file called `MyClass.php`
 ```php
