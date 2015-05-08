@@ -649,5 +649,50 @@ EOT;
         $this->assertEquals($expected, $f->getSrc());
     }
 
+    public function testSetNamespace()
+    {
+        $src = <<<'EOT'
+<?php
+
+class Foo {}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace Ns;
+
+class Foo {}
+EOT;
+
+        $f = new File($src);
+        $f->setNamespace('Ns');
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+    public function testSetNamespaceWithExisting()
+    {
+        $src = <<<'EOT'
+<?php
+
+namespace Ns1;
+
+class Foo {}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace Ns2;
+
+class Foo {}
+EOT;
+
+        $f = new File($src);
+        $f->setNamespace('Ns2');
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
 
 }

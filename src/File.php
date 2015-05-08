@@ -11,6 +11,7 @@ class File
     private $originalUse;
     private $newUse;
     private $ignoredClassKeywords = [ 'parent', 'self', 'static' ];
+    private $newNamespace;
 
     public function __construct($src)
     {
@@ -64,6 +65,33 @@ class File
         }
 
         return '';
+    }
+
+    public function setNamespace($ns)
+    {
+        $nsSrc = "namespace $ns;";
+        $t = token_get_all($nsSrc);
+
+        list($first, $last) = $this->positionForSequence([
+            [T_NAMESPACE, 1],
+            [T_WHITESPACE, '*'],
+            [[T_NS_SEPARATOR, T_STRING], '*'],
+        ]);
+
+        if ($first) {
+            $nsSrc = "namespace $ns";
+            $t = token_get_all($nsSrc);
+            array_splice($this->tokens, $first, $last-$first+1, $t);
+        } else {
+            $nsSrc = "\nnamespace $ns;\n";
+            $t = token_get_all($nsSrc);
+            list($first, $last) = $this->positionForSequence([
+                [T_OPEN_TAG, 1],
+                [T_WHITESPACE, 1],
+            ]);
+
+            array_splice($this->tokens, $last, 0, $t);
+        }
     }
 
     private function seekToNextType($tokenIterator, $tokenType)
