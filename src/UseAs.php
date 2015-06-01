@@ -4,9 +4,9 @@ namespace Mtibben\PhpClassRename;
 
 class UseAs
 {
-    public $container = array();
-    public $keywords = array('__halt_compiler', 'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch', 'class', 'clone', 'const', 'continue', 'declare', 'default', 'die', 'do', 'echo', 'else', 'elseif', 'empty', 'enddeclare', 'endfor', 'endforeach', 'endif', 'endswitch', 'endwhile', 'eval', 'exit', 'extends', 'final', 'for', 'foreach', 'function', 'global', 'goto', 'if', 'implements', 'include', 'include_once', 'instanceof', 'insteadof', 'interface', 'isset', 'list', 'namespace', 'new', 'or', 'print', 'private', 'protected', 'public', 'require', 'require_once', 'return', 'static', 'switch', 'throw', 'trait', 'try', 'unset', 'use', 'var', 'while', 'xor');
-    public $conflictCtr = 1;
+    private $container = array();
+    private $keywords = array('__halt_compiler', 'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch', 'class', 'clone', 'const', 'continue', 'declare', 'default', 'die', 'do', 'echo', 'else', 'elseif', 'empty', 'enddeclare', 'endfor', 'endforeach', 'endif', 'endswitch', 'endwhile', 'eval', 'exit', 'extends', 'final', 'for', 'foreach', 'function', 'global', 'goto', 'if', 'implements', 'include', 'include_once', 'instanceof', 'insteadof', 'interface', 'isset', 'list', 'namespace', 'new', 'or', 'print', 'private', 'protected', 'public', 'require', 'require_once', 'return', 'static', 'switch', 'throw', 'trait', 'try', 'unset', 'use', 'var', 'while', 'xor');
+    private $conflictCtr = 1;
 
     public static function createFromSrc($src)
     {
@@ -150,4 +150,32 @@ class UseAs
 
         return array_slice($t, 1);
     }
+
+    public function replaceClasses($map)
+    {
+        foreach ($this->container as &$c) {
+            $classkey = (string)$c['classname'];
+            if(isset($map[$classkey])) {
+                $c['classname'] = new Classname($map[$classkey]);
+            }
+        }
+    }
+
+    // public function replaceClass($from, $to)
+    // {
+    //     echo "Replacing $from with $to\n";
+    //     $fromClass = new Classname($from);
+    //     // $toClass = new Classname($from);
+    //     $newContainer = [];
+    //     foreach ($this->container as $c) {
+    //         // var_dump($c);
+    //         if ($c['classname']->equals($fromClass)) {
+    //             echo "Got a match\n";
+    //             $c['classname'] = new Classname($to);
+    //         }
+    //         $newContainer[] = $c;
+    //     }
+
+    //     $this->container = $newContainer;
+    // }
 }

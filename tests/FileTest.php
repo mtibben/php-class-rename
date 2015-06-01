@@ -197,6 +197,7 @@ EOT;
         $this->assertEquals('Ns\One\Two\Three', $ns);
     }
 
+
     public function testFindAndFixWithRelativeClass()
     {
         $src = <<<'EOT'
@@ -671,6 +672,35 @@ EOT;
         $this->assertEquals($expected, $f->getSrc());
     }
 
+
+    public function testSetNamespace2()
+    {
+        $src = <<<'EOT'
+<?php
+
+class Foo {
+    function baz() {}
+}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace Ns\Foo\Bar\Baz;
+
+class Foo {
+    function baz() {}
+}
+EOT;
+
+        $f = new File($src);
+        $f->setNamespace('Ns\Foo\Bar\Baz');
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+
+
     public function testSetNamespaceWithExisting()
     {
         $src = <<<'EOT'
@@ -695,4 +725,245 @@ EOT;
         $this->assertEquals($expected, $f->getSrc());
     }
 
+    public function testGetFullClassname()
+    {
+        $src = <<<'EOT'
+<?php
+namespace Ns1;
+class Foo {}
+EOT;
+        $f = new File($src);
+        $this->assertEquals('Ns1\\Foo', (string)$f->getFullClassname());
+    }
+
+    public function testGetFullClassnameNoNamespace()
+    {
+        $src = <<<'EOT'
+<?php
+class Foo {}
+EOT;
+        $f = new File($src);
+        $this->assertEquals('Foo', (string)$f->getFullClassname());
+    }
+
+    public function testSetClassname()
+    {
+        $src = <<<'EOT'
+<?php
+class OldVendor_OldNamespace_MyClass {
+    public function getDate() {
+        return new DateTime("2014-10-20");
+    }
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+class MyClass {
+    public function getDate() {
+        return new DateTime("2014-10-20");
+    }
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassname('MyClass');
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+    public function testSetClassnameAndNamespace()
+    {
+        $src = <<<'EOT'
+<?php
+
+class OldVendor_OldNamespace_MyClass {
+    public function getDate() {}
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+
+namespace NewVendor\NewNamespace;
+
+class MyClass {
+    public function getDate() {}
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassname('MyClass');
+        $f->setNamespace('NewVendor\NewNamespace');
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+    public function testSetNamespaceWithNoWhitespace()
+    {
+        $src = <<<'EOT'
+<?php
+class OldVendor_OldNamespace_MyClass {
+    public function getDate() {}
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+
+namespace NewVendor\NewNamespace;
+
+class OldVendor_OldNamespace_MyClass {
+    public function getDate() {}
+}
+EOT;
+
+        $f = new File($src);
+        $f->setNamespace('NewVendor\NewNamespace');
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+    public function testSettingClassAndNamespace()
+    {
+        $src = <<<'EOT'
+<?php
+
+class OldVendor_OldNamespace_MyClass {
+    public function getDate() {}
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+
+namespace NewVendor\NewNamespace;
+
+class MyClass {
+    public function getDate() {}
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassname('MyClass');
+        $f->setNamespace('NewVendor\NewNamespace');
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+    public function testSettingClassAndNamespaceWithPsrRoot()
+    {
+        $src = <<<'EOT'
+<?php
+
+class OldVendor_OldNamespace_MyClass {
+    public function getDate() {}
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+
+namespace NewVendor\NewNamespace;
+
+class MyClass {
+    public function getDate() {}
+}
+EOT;
+
+        $f = new File($src);
+        $f->path='/fake/NewVendor/NewNamespace/MyClass.php';
+        $f->setPsr4Root('/fake');
+        $impliedPsr4Classname = $f->getImpliedPsr4Classname();
+        $f->setNamespace($impliedPsr4Classname->ns());
+        $f->setClassname($impliedPsr4Classname->nameWithoutNamespace());
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+
+    public function testGetNamespaceAfterSetting()
+    {
+        $src = <<<'EOT'
+<?php
+
+namespace OldNs;
+
+class MyClass {
+    public function getDate() {}
+}
+EOT;
+
+        $f = new File($src);
+        $this->assertEquals("OldNs", $f->getNamespace());
+        $f->setNamespace("NewNs");
+        $this->assertEquals("NewNs", $f->getNamespace());
+    }
+
+    public function testNamespacifyWithExistingNamespace()
+    {
+        $src = <<<'EOT'
+<?php
+
+namespace OldVendor\OldNamespace;
+
+class MyClass {
+    public function getDate() {
+        return new \DateTime("2014-10-20");
+    }
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+
+namespace NewVendor\NewNamespace;
+
+use DateTime;
+
+class MyClass {
+    public function getDate() {
+        return new DateTime("2014-10-20");
+    }
+}
+EOT;
+
+        $f = new File($src);
+        $f->path='/fake/NewVendor/NewNamespace/MyClass.php';
+        $f->setPsr4Root('/fake');
+        $impliedPsr4Classname = $f->getImpliedPsr4Classname();
+        $f->setNamespace($impliedPsr4Classname->ns());
+        $f->findAndfixClasses();
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+    public function testNamespacifyWithoutExistingNamespace()
+    {
+        $src = <<<'EOT'
+<?php
+
+class OldVendor_OldNamespace_MyClass {
+    public function getDate() {
+        return new DateTime("2014-10-20");
+    }
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+
+namespace NewVendor\NewNamespace;
+
+use DateTime;
+
+class MyClass {
+    public function getDate() {
+        return new DateTime("2014-10-20");
+    }
+}
+EOT;
+
+        $f = new File($src);
+        $f->path='/fake/NewVendor/NewNamespace/MyClass.php';
+        $f->setPsr4Root('/fake');
+        $impliedPsr4Classname = $f->getImpliedPsr4Classname();
+        $f->findAndfixClasses();
+        $f->setNamespace($impliedPsr4Classname->ns());
+        $f->setClassname($impliedPsr4Classname->nameWithoutNamespace());
+
+        $this->assertEquals($expected, $f->getSrc());
+    }
 }

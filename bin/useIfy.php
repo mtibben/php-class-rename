@@ -3,37 +3,15 @@
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-function useifyDir($dir)
-{
-    $files = scandir($dir);
+use Mtibben\PhpClassRename\Runner;
 
-    foreach ($files as $f) {
-        if ($f[0] == '.') {
-            continue;
-        }
+$runner = new Runner();
 
-        useifyFile("$dir/$f");
-    }
-}
+$cmd = new Commando\Command();
 
-function useifyFile($path)
-{
-    if (is_dir($path)) {
-        useifyDir($path);
-        return;
-    }
+$cmd->option()
+    ->require()
+    ->describedAs('A list of files or directories');
 
-    if (!preg_match('/.php$/', $path)) {
-        return;
-    }
-
-    echo "Usifying $path\n";
-
-    $f = \Mtibben\PhpClassRename\File::createFromPath($path);
-    $f->findAndfixClasses();
-    $f->save();
-}
-
-for ($i=1; $i < count($argv); $i++) {
-    useifyFile($argv[$i]);
-}
+$runner->setDirs($cmd->getArgumentValues());
+$runner->useify();

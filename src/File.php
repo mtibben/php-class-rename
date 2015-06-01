@@ -12,21 +12,21 @@ class File
     private $newUse;
     private $ignoredClassKeywords = [ 'parent', 'self', 'static' ];
     private $newNamespace;
+    private $classReplacements = [];
 
     public function __construct($src)
     {
         $this->tokens = token_get_all($src);
-        // var_dump($this->tokens);
         $this->originalUse = UseAs::createFromSrc($src);
         $this->originalUse->addDisallowedAlias($this->getClass());
         $this->newUse = clone $this->originalUse;
-        // echo 'added '.$this->getClass();
+
     }
 
     public static function createFromPath($path)
     {
         $f = new File(file_get_contents($path));
-        $f->path = $path;
+        $f->path = realpath($path);
 
         return $f;
     }
@@ -34,15 +34,13 @@ class File
     public function findAndfixClasses()
     {
         $classesToFix = $this->findClasses();
-        // var_dump($classesToFix);
         $this->fixClasses($classesToFix);
-        $this->insertUse();
     }
 
     public function getClass()
     {
         list($null, $pos) = $this->positionForSequence([
-            [T_CLASS, 1],
+            [[T_CLASS,T_INTERFACE,T_TRAIT], 1],
             [T_WHITESPACE, '*'],
         ]);
 
@@ -53,8 +51,59 @@ class File
         return '';
     }
 
+
+    public function setClassname($classname)
+    {
+        list($first, $last) = $this->positionForSequence([
+            [[T_CLASS,T_INTERFACE,T_TRAIT], 1],
+            [T_WHITESPACE, '*'],
+            [T_STRING, '1'],
+        ]);
+
+        if ($last) {
+            $t = token_get_all($classname);
+            array_splice($this->tokens, $last, 1, $t);
+        } else {
+            throw new Exception("no class found");
+        }
+    }
+
+
+    public function getFullClassname()
+    {
+        $ns = $this->getNamespace();
+        $class = $this->getClass();
+        if ($ns) {
+            return new Classname("\\$ns\\$class");
+        } else {
+            return new Classname($class);
+        }
+    }
+
+    public function setPsr4Root($dir, $prefix = '\\') {
+        $this->psr4RootDir = realpath($dir) ?: $dir;
+    }
+
+    public function getImpliedPsr4Classname()
+    {
+        $psr = preg_quote($this->psr4RootDir, '#');
+
+        preg_match("#^$psr/(.+).php$#", $this->path, $matches);
+
+        $c = str_replace('/','\\', $matches[1]);
+
+        return new Classname($c);
+    }
+
+    private $originalNamespace;
+    public function getOriginalNamespace()
+    {
+        return $this->originalNamespace ?: $this->getNamespace();
+    }
+
     public function getNamespace()
     {
+
         list($null, $pos) = $this->positionForSequence([
             [T_NAMESPACE, 1],
             [T_WHITESPACE, '*'],
@@ -69,8 +118,9 @@ class File
 
     public function setNamespace($ns)
     {
-        $nsSrc = "namespace $ns;";
-        $t = token_get_all($nsSrc);
+        $this->originalNamespace = $this->getNamespace();
+
+        $ns = trim($ns, '\\');
 
         list($first, $last) = $this->positionForSequence([
             [T_NAMESPACE, 1],
@@ -79,18 +129,23 @@ class File
         ]);
 
         if ($first) {
-            $nsSrc = "namespace $ns";
+            $nsSrc = "<?php\nnamespace $ns;";
             $t = token_get_all($nsSrc);
-            array_splice($this->tokens, $first, $last-$first+1, $t);
+            array_shift($t);
+            array_splice($this->tokens, $first, $last-$first+2, $t);
         } else {
-            $nsSrc = "\nnamespace $ns;\n";
+            $whitespace="\n";
+            if ($this->tokens[1][0] != T_WHITESPACE) {
+                $whitespace="\n\n";
+            }
+            $nsSrc = "<?php\n\nnamespace $ns;$whitespace";
             $t = token_get_all($nsSrc);
+            array_shift($t);
             list($first, $last) = $this->positionForSequence([
                 [T_OPEN_TAG, 1],
-                [T_WHITESPACE, 1],
             ]);
 
-            array_splice($this->tokens, $last, 0, $t);
+            array_splice($this->tokens, $last+1, 0, $t);
         }
     }
 
@@ -113,7 +168,6 @@ class File
             if ($position[1] > $before) {
                 break;
             }
-            // var_dump($position);
             $positions[] = $position;
             $lastpos = $position[1]+1;
         }
@@ -170,16 +224,12 @@ class File
             [T_CLASS, 1],
         ]);
 
-        // var_dump($classPosition);die();
-
         $usePositions = $this->allPositionsForSequence([
             [T_USE, 1],
             [[T_WHITESPACE, T_NS_SEPARATOR, T_STRING, T_AS], '*'],
             [';', 1],
             [T_WHITESPACE, '*'],
         ], $classPosition);
-
-        // var_dump($usePositions);die();
 
         if ($usePositions) {
             $offsetPos = $usePositions[0][0];
@@ -250,7 +300,7 @@ class File
             return $c;
         }
 
-        return new Classname($this->getNamespace().'\\'.$name);
+        return new Classname($this->getOriginalNamespace().'\\'.$name);
     }
 
     private function createFoundClass($name, $from, $to)
@@ -292,8 +342,6 @@ class File
 
         foreach ($classesToFix as $c) {
             $resolvedClass = $this->resolveClass($c->name);
-            // var_dump($c->name);
-            // var_dump($resolvedClass);
             $alias = $this->newUse->getOrAddClassname($resolvedClass);
             $offset = $c->from;
             $length = $c->to - $c->from + 1;
@@ -329,6 +377,9 @@ class File
 
     public function getSrc()
     {
+        $this->updateUseWithClassReplacements();
+        $this->insertUse();
+
         $content = "";
         foreach ($this->tokens as $t) {
             $content .= $this->tokenStr($t);
@@ -342,82 +393,15 @@ class File
         file_put_contents($this->path, $this->getSrc());
     }
 
-    // private function shortClassName($fullClassname) {
-    //     preg_match('#^(.+[_\\\\])?(\w+)$#', $fullClassname, $matches);
+    public function setClassnameReplacements($classReplacements)
+    {
+        $this->classReplacements = $classReplacements;
+    }
 
-    //     return $matches[2];
-    // }
-
-        // $uses = $this->findAll([
-        //     [T_USE, 1],
-        //     [T_WHITESPACE, '+'],
-        //     [[T_NS_SEPARATOR, T_STRING], '+', 'class'],
-        //     [T_WHITESPACE, '*'],
-        //     [T_AS, '?'],
-        //     [[T_NS_SEPARATOR, T_STRING], '?', 'as'],
-        //     [T_WHITESPACE, '*'],
-        //     [';', 1],
-        // ]);
-
-        // foreach($uses as $use) {
-        //     $class = new Classname($use['class']);
-        //     $as = (!isset($u['as']))
-        //         ? $u['as']
-        //         : $class->nameWithoutNamespace();
-
-        //     $this->originalUse[$as] = $class;
-        // }
-
-
-    // public function findAll(array $tokenSequence)
-    // {
-    //     $seqIterator = new ArrayIterator($tokenSequence);
-    //     $tokenIterator = new ArrayIterator($this->tokens);
-
-    //     while($tokenIterator->valid()) {
-    //         $seqIterator->rewind();
-    //         list($allowedTokens, $timesAllowed, $namedParam) = $seqIterator->current();
-
-    //         $this->seekToNextType($tokenIterator, $allowedTokens);
-
-    //         while($tokenIterator->valid()) {
-    //             $match = array();
-    //             if (!$seqIterator->valid()) {
-    //                 return $tokenIterator->key();
-    //             }
-    //             list($allowedTokens, $timesAllowed, $namedParam) = $seqIterator->current();
-    //             if ($timesAllowed == '*') {
-    //                 while($tokenIterator->valid() && $this->isTokenType($tokenIterator->current(), $allowedTokens)) {
-    //                     $tokenIterator->next();
-    //                 }
-    //             } else if ($timesAllowed == '+') {
-    //                 if ($this->isTokenType($tokenIterator->current(), $allowedTokens)) {
-    //                     $tokenIterator->next();
-    //                 } else {
-    //                     continue 2;
-    //                 }
-
-    //                 while($tokenIterator->valid() && $this->isTokenType($tokenIterator->current(), $allowedTokens)) {
-    //                     $tokenIterator->next();
-    //                 }
-
-    //             } else if ($timesAllowed == '?') {
-    //                 if ($this->isTokenType($tokenIterator->current(), $allowedTokens)) {
-    //                     $tokenIterator->next();
-    //                 }
-    //             } else {
-    //                 for ($i=0; $i < $timesAllowed; $i++) {
-    //                     if ($this->isTokenType($tokenIterator->current(), $allowedTokens)) {
-    //                         $tokenIterator->next();
-    //                     } else {
-    //                         continue 2;
-    //                     }
-    //                 }
-    //             }
-    //             $seqIterator->next();
-    //         }
-    //     }
-
-    //     return null;
-    // }
+    public function updateUseWithClassReplacements()
+    {
+        if ($this->classReplacements) {
+            $this->newUse->replaceClasses($this->classReplacements);
+        }
+    }
 }
