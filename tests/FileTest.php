@@ -966,4 +966,31 @@ EOT;
 
         $this->assertEquals($expected, $f->getSrc());
     }
+
+    public function testFindAndFixWithFunctionClass()
+    {
+        $src = <<<'EOT'
+<?php
+function baz(\Foo\Bar $a, A\Exception $b, $c = true, $d, B\Wat $e = null) {}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace Foo;
+
+use Foo\Bar;
+use A\Exception;
+use B\Wat;
+
+function baz(Bar $a, Exception $b, $c = true, $d, Wat $e = null) {}
+EOT;
+
+        $f = new File($src);
+        $f->findAndfixClasses();
+        $f->setNamespace('Foo');
+        $this->assertEquals($expected, $f->getSrc());
+    }
+
+
 }

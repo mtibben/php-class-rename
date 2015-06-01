@@ -20,7 +20,6 @@ class File
         $this->originalUse = UseAs::createFromSrc($src);
         $this->originalUse->addDisallowedAlias($this->getClass());
         $this->newUse = clone $this->originalUse;
-
     }
 
     public static function createFromPath($path)
@@ -276,6 +275,25 @@ class File
                 if ($c) {
                     $classesToFix[] = $c;
                 }
+            } elseif ($this->isTokenType($t, array(T_FUNCTION))) {
+                $j=$i+4;
+                $c = $this->findClassInNextTokens($j); // +4 to consume whitespace, name, open brace
+                if ($c) {
+                    $classesToFix[] = $c;
+                    $j = $c->to;
+                }
+
+                while($this->tokens[$j] != ")") {
+                    if ($this->tokens[$j] == ',') {
+                        $c = $this->findClassInNextTokens($j+2); // +2 to consume comma and whitepace
+                        if ($c) {
+                            $classesToFix[] = $c;
+                            $j = $c->to;
+                        }
+                    }
+                    $j++;
+                }
+
             }
         }
 
