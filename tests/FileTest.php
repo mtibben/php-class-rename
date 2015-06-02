@@ -1001,5 +1001,48 @@ EOT;
         $this->assertEquals($expected, $f->getSrc());
     }
 
+    public function testSetClassnameReplacements()
+    {
+        $src = <<<'EOT'
+<?php
+
+namespace Ns;
+
+use Foo_Bar;
+
+class MyClass {
+    public function getDate() {
+        Foo_Bar::baz();
+
+        $a = "Foo_Bar";
+        $b = '\Foo_Bar';
+        $c = array("Foo_Bar" => 'Foo_Bar');
+    }
+}
+EOT;
+        $expected = <<<'EOT'
+<?php
+
+namespace Ns;
+
+use Foo\Bar as Foo_Bar;
+
+class MyClass {
+    public function getDate() {
+        Foo_Bar::baz();
+
+        $a = "Foo\Bar";
+        $b = '\Foo\Bar';
+        $c = array("Foo\Bar" => 'Foo\Bar');
+    }
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassnameReplacements([
+            'Foo_Bar' => 'Foo\Bar',
+        ]);
+        $this->assertEquals($expected, $f->getSrc());
+    }
 
 }

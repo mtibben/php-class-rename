@@ -412,6 +412,7 @@ class File
     {
         $this->updateUseWithClassReplacements();
         $this->insertUse();
+        $this->replaceStringsWithClassReplacements();
 
         $content = "";
         foreach ($this->tokens as $t) {
@@ -435,6 +436,26 @@ class File
     {
         if ($this->classReplacements) {
             $this->newUse->replaceClasses($this->classReplacements);
+        }
+    }
+
+    private function replaceStringsWithClassReplacements()
+    {
+        $replacements = [];
+        foreach ($this->classReplacements as $key => $value) {
+            $replacements['"'.$key.'"'] = '"'.$value.'"';
+            $replacements['\''.$key.'\''] = '\''.$value.'\'';
+            $replacements['"\\'.$key.'"'] = '"\\'.$value.'"';
+            $replacements['\'\\'.$key.'\''] = '\'\\'.$value.'\'';
+        }
+        foreach ($this->tokens as &$t) {
+            if (is_array($t)) {
+                if ($t[0] == T_CONSTANT_ENCAPSED_STRING) {
+                    if (isset($replacements[$t[1]])) {
+                        $t[1] = $replacements[$t[1]];
+                    }
+                }
+            }
         }
     }
 }
