@@ -260,11 +260,26 @@ class File
         $classesToFix = array();
 
         foreach ($this->tokens as $i => $t) {
-            if ($this->isTokenType($t, array(T_NEW, T_EXTENDS, T_IMPLEMENTS))) {
+            if ($this->isTokenType($t, array(T_NEW, T_EXTENDS))) {
                 $c = $this->findClassInNextTokens($i+2); // +2 to consume whitespace
                 if ($c) {
                     $classesToFix[] = $c;
                 }
+            } elseif ($this->isTokenType($t, array(T_IMPLEMENTS))) {
+                $c = $this->findClassInNextTokens($i+2); // +2 to consume whitespace
+                if ($c) {
+                    $classesToFix[] = $c;
+                }
+                $j = $c->to + 1;
+                while($this->tokens[$j] == ",") {
+                    $c = $this->findClassInNextTokens($j+2); // +2 to consume comma and whitepace
+                    if ($c) {
+                        $classesToFix[] = $c;
+                        $j = $c->to;
+                    }
+                    $j++;
+                }
+
             } elseif ($this->isTokenType($t, array(T_PAAMAYIM_NEKUDOTAYIM, T_DOUBLE_COLON))) {
                 $c = $this->findClassInPreviousTokens($i-1);
                 if ($c) {
