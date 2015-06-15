@@ -57,6 +57,35 @@ EOT;
         $this->assertEquals(7, $c->to);
     }
 
+    public function testFindClassesExtendsMultiple()
+    {
+        $src = <<<'EOT'
+<?php
+class Foo extends Bar, Baz, Buzz {
+
+}
+EOT;
+
+        $f = new File($src);
+        $classes = $f->findClasses();
+
+        $c = array_shift($classes);
+        $this->assertEquals('Bar', $c->name);
+        $this->assertEquals(7, $c->from);
+        $this->assertEquals(7, $c->to);
+
+        $c = array_shift($classes);
+        $this->assertEquals('Baz', $c->name);
+        $this->assertEquals(10, $c->from);
+        $this->assertEquals(10, $c->to);
+
+        $c = array_shift($classes);
+        $this->assertEquals('Buzz', $c->name);
+        $this->assertEquals(13, $c->from);
+        $this->assertEquals(13, $c->to);
+    }
+
+
     public function testFindClassesImplements()
     {
         $src = <<<'EOT'
