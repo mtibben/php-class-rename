@@ -18,18 +18,46 @@ $cmd->option('dry-run')
     ->describedAs('Dry run')
     ->boolean();
 
+$cmd->option('replace-script')
+    ->aka('r')
+    ->describedAs('Write a replace script')
+    ->boolean();
+
+$cmd->option('other-files')
+    ->describedAs("Other files to update with changed classnames")
+    ->argument()
+;
+
 
 $runner->setDirs($cmd->getArgumentValues());
+
+$replaceClassesFiles = explode(',', $cmd['other-files']);
 
 if ($cmd['dry-run']) {
     echo "Classes to be renamed:\n";
     foreach($runner->getClassReplacementMap() as $sourceClass => $targetClass) {
         echo "  $sourceClass -> $targetClass\n";
     }
+
+    echo "Classes to skip namespacing:\n";
+    foreach($replaceClassesFiles as $f) {
+        echo "  $f\n";
+    }
+
 } else {
     echo "Getting classes to be renamed\n";
-    $runner->getClassReplacementMap();
+    $map = $runner->getClassReplacementMap();
 
-    echo "Updating classes\n";
-    $runner->renameClasses();
+    echo "Updating namespace and classnames\n";
+    $runner->renameNamespaceAndClassnameAndFixReferencedClasses();
+
+    echo "Updating changed classnames in other files\n";
+    $runner->fixReferencedClasses($replaceClassesFiles);
+
+    echo "Writing replace script\n";
+    $data = "";
+    foreach ($map as $key => $value) {
+       $data .= "$key $value\n";
+    }
+    file_put_contents("replacements.txt", $data);
 }

@@ -63,24 +63,39 @@ class Runner
         return $this->replacementMap;
     }
 
-    private function renameClassesInFile($path, $root)
+    private function renameNamespaceAndClassnameAndFixReferencedClassesInFile($path, $root)
     {
         $f = File::createFromPath($path);
         $f->setPsr4Root($root);
-        $f->findAndfixClasses();
         $impliedPsr4Classname = $f->getImpliedPsr4Classname();
-        $f->setNamespace($impliedPsr4Classname->ns());
         $f->setClassname($impliedPsr4Classname->nameWithoutNamespace());
+        $f->findAndShortenClasses();
+        $f->setNamespace($impliedPsr4Classname->ns());
         $f->setClassnameReplacements($this->getClassReplacementMap());
         $f->save();
     }
 
-    public function renameClasses()
+    public function renameNamespaceAndClassnameAndFixReferencedClasses()
     {
         $this->getClassReplacementMap();
 
         foreach($this->dirs as $path) {
-            $this->processFile($path, $path, [$this, 'renameClassesInFile']);
+            $this->processFile($path, $path, [$this, 'renameNamespaceAndClassnameAndFixReferencedClassesInFile']);
+        }
+    }
+
+    private function fixReferencedClassesInFile($path, $root)
+    {
+        $f = File::createFromPath($path);
+        $f->findAndShortenClasses();
+        $f->setClassnameReplacements($this->getClassReplacementMap());
+        $f->save();
+    }
+
+    public function fixReferencedClasses(array $paths)
+    {
+        foreach($paths as $path) {
+            $this->processFile($path, $path, [$this, 'fixReferencedClassesInFile']);
         }
     }
 
@@ -92,7 +107,7 @@ class Runner
     private function useifyFile($path, $root)
     {
         $f = File::createFromPath($path);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
         $f->save();
     }
 

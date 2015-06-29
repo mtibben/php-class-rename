@@ -131,6 +131,24 @@ EOT;
         $this->assertEquals(10, $c->to);
     }
 
+    public function testFindClassesInstanceOf()
+    {
+        $src = <<<'EOT'
+<?php
+
+$a instanceof Foo;
+
+EOT;
+
+        $f = new File($src);
+        $classes = $f->findClasses();
+        $c = array_pop($classes);
+
+        $this->assertEquals('Foo', $c->name);
+        $this->assertEquals(6, $c->from);
+        $this->assertEquals(6, $c->to);
+    }
+
     public function testFindClassesWithNewVar()
     {
         $src = <<<'EOT'
@@ -189,7 +207,7 @@ new Bar();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
 
         $this->assertEquals($expected, $f->getSrc());
@@ -214,7 +232,7 @@ new Bar();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -255,7 +273,7 @@ new Bar();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -276,7 +294,7 @@ new Bar();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -300,7 +318,7 @@ new Bar();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -327,7 +345,7 @@ new Foo_Bar();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
    }
@@ -358,7 +376,7 @@ new Wat();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
    }
@@ -394,7 +412,7 @@ new Wat();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
    }
@@ -413,7 +431,7 @@ $foo = function ($data) use ($one, $two, $three) {
 };
 EOT;
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
         $this->assertEquals($src, $f->getSrc());
    }
 
@@ -427,7 +445,7 @@ $collect = function ($data) use ($that, $collected, $collect) {
 };
 EOT;
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
         $this->assertEquals($src, $f->getSrc());
    }
 
@@ -441,7 +459,7 @@ use One\Two\Three;
 new Three();
 EOT;
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
         $this->assertEquals($src, $f->getSrc());
    }
 
@@ -456,7 +474,7 @@ FileUploadException::forErrorCode($fileError);
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
         $this->assertEquals($src, $f->getSrc());
    }
 
@@ -480,7 +498,7 @@ new Four();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
    }
@@ -504,7 +522,7 @@ new InvalidArgumentException();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
    }
@@ -536,7 +554,7 @@ class My_Class {
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
    }
@@ -556,7 +574,7 @@ new One_Function();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
    }
@@ -582,7 +600,7 @@ class One extends Two_One {
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -609,7 +627,7 @@ Two1::three;
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -636,7 +654,7 @@ Two1::three;
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -661,7 +679,7 @@ new Three1();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -683,7 +701,7 @@ new One();
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -964,7 +982,7 @@ EOT;
         $f->setPsr4Root('/fake');
         $impliedPsr4Classname = $f->getImpliedPsr4Classname();
         $f->setNamespace($impliedPsr4Classname->ns());
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
 
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -998,7 +1016,7 @@ EOT;
         $f->path='/fake/NewVendor/NewNamespace/MyClass.php';
         $f->setPsr4Root('/fake');
         $impliedPsr4Classname = $f->getImpliedPsr4Classname();
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
         $f->setNamespace($impliedPsr4Classname->ns());
         $f->setClassname($impliedPsr4Classname->nameWithoutNamespace());
 
@@ -1025,7 +1043,7 @@ function baz(Bar $a, Exception $b, $c = true, $d, Wat $e = null) {}
 EOT;
 
         $f = new File($src);
-        $f->findAndfixClasses();
+        $f->findAndShortenClasses();
         $f->setNamespace('Foo');
         $this->assertEquals($expected, $f->getSrc());
     }
@@ -1074,4 +1092,177 @@ EOT;
         $this->assertEquals($expected, $f->getSrc());
     }
 
+    public function testClassWithSameBasenameAsExtends()
+    {
+        $src = <<<'EOT'
+<?php
+
+class Old_MyClass extends MyClass {
+}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace NewVendor\NewNamespace;
+
+use MyClass as MyClass1;
+
+class MyClass extends MyClass1 {
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassname('MyClass');
+        $f->findAndShortenClasses();
+        $f->setNamespace('NewVendor\NewNamespace');
+        $this->assertEquals($expected, $f->getSrc());
+
+   }
+
+    public function testClassWithSameBasenameAsExtends2()
+    {
+        $src = <<<'EOT'
+<?php
+
+class One_Foo implements Two_Foo {
+}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace One;
+
+use Two\Foo as Two_Foo;
+
+class Foo implements Two_Foo {
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassname('Foo');
+        $f->findAndShortenClasses();
+        $f->setNamespace('One');
+        $f->setClassnameReplacements([
+            'Two_Foo' => 'Two\Foo',
+        ]);
+        $this->assertEquals($expected, $f->getSrc());
+   }
+
+
+
+    public function testFileWithTwoClasses()
+    {
+        $src = <<<'EOT'
+<?php
+
+class One_Foo {
+    public function a() {
+        $a = One_BarBar();
+    }
+}
+
+class One_BarBar {
+}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace One;
+
+class Foo {
+    public function a() {
+        $a = One_BarBar();
+    }
+}
+
+class One_BarBar {
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassname('Foo');
+        $f->findAndShortenClasses();
+        $f->setNamespace('One');
+        $this->assertEquals($expected, $f->getSrc());
+   }
+
+    public function testFileWithTwoClasses2()
+    {
+        $src = <<<'EOT'
+<?php
+
+class One_Two
+{
+    public function b()
+    {
+        $a = new Three_Four_Five();
+    }
+}
+
+class Three_Four_Five
+{
+}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace One;
+
+class Two
+{
+    public function b()
+    {
+        $a = new Three_Four_Five();
+    }
+}
+
+class Three_Four_Five
+{
+}
+EOT;
+
+        $f = new File($src);
+        $f->setClassname('Two');
+        $f->findAndShortenClasses();
+        $f->setNamespace('One');
+        $this->assertEquals($expected, $f->getSrc());
+   }
+
+    public function testFindClassesReferingToItself()
+    {
+        $src = <<<'EOT'
+<?php
+
+class One_Two
+{
+    function three()
+    {
+        new One_Two();
+    }
+}
+EOT;
+
+        $expected = <<<'EOT'
+<?php
+
+namespace One;
+
+class Two
+{
+    function three()
+    {
+        new static();
+    }
+}
+EOT;
+        $f = new File($src);
+        $f->setClassname('Two');
+        $f->findAndShortenClasses();
+        $f->setNamespace('One');
+        $this->assertEquals($expected, $f->getSrc());
+    }
 }

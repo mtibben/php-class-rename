@@ -4,8 +4,8 @@ namespace Mtibben\PhpClassRename;
 
 class UseAs
 {
-    private $container = array();
-    private $keywords = array('__halt_compiler', 'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch', 'class', 'clone', 'const', 'continue', 'declare', 'default', 'die', 'do', 'echo', 'else', 'elseif', 'empty', 'enddeclare', 'endfor', 'endforeach', 'endif', 'endswitch', 'endwhile', 'eval', 'exit', 'extends', 'final', 'for', 'foreach', 'function', 'global', 'goto', 'if', 'implements', 'include', 'include_once', 'instanceof', 'insteadof', 'interface', 'isset', 'list', 'namespace', 'new', 'or', 'print', 'private', 'protected', 'public', 'require', 'require_once', 'return', 'static', 'switch', 'throw', 'trait', 'try', 'unset', 'use', 'var', 'while', 'xor');
+    private $classnames = array();
+    private $disallowed = array('__halt_compiler', 'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch', 'class', 'clone', 'const', 'continue', 'declare', 'default', 'die', 'do', 'echo', 'else', 'elseif', 'empty', 'enddeclare', 'endfor', 'endforeach', 'endif', 'endswitch', 'endwhile', 'eval', 'exit', 'extends', 'final', 'for', 'foreach', 'function', 'global', 'goto', 'if', 'implements', 'include', 'include_once', 'instanceof', 'insteadof', 'interface', 'isset', 'list', 'namespace', 'new', 'or', 'print', 'private', 'protected', 'public', 'require', 'require_once', 'return', 'static', 'switch', 'throw', 'trait', 'try', 'unset', 'use', 'var', 'while', 'xor');
     private $conflictCtr = 1;
 
     public static function createFromSrc($src)
@@ -26,12 +26,12 @@ class UseAs
 
     public function addDisallowedAlias($alias)
     {
-        $this->keywords[] = strtolower($alias);
+        $this->disallowed[] = strtolower($alias);
     }
 
     public function isAliasValid($alias)
     {
-        return !in_array(strtolower($alias), $this->keywords);
+        return !in_array(strtolower($alias), $this->disallowed);
     }
 
     public function addClassname(Classname $class, $alias = null)
@@ -51,7 +51,7 @@ class UseAs
             $alias .= $this->conflictCtr++;
         }
 
-        $this->container[] = [
+        $this->classnames[] = [
             'classname' => $class,
             'alias' => $alias,
         ];
@@ -61,9 +61,6 @@ class UseAs
 
     public function getOrAddClassname(Classname $class)
     {
-        // echo "getOrAddClassname ";
-        // var_dump($class);
-        // var_dump($this->getAliasForClassname($class));
         if ($name = $this->getAliasForClassname($class)) {
             return $name;
         }
@@ -71,10 +68,9 @@ class UseAs
         return $this->addClassname($class);
     }
 
-
-    public function getAliasForClassname(Classname $class)
+    private function getAliasForClassname(Classname $class)
     {
-        foreach ($this->container as $c) {
+        foreach ($this->classnames as $c) {
             if ($c['classname']->equals($class)) {
                 return $c['alias'];
             }
@@ -85,7 +81,7 @@ class UseAs
 
     public function hasClassname(Classname $class)
     {
-        foreach ($this->container as $c) {
+        foreach ($this->classnames as $c) {
             if ($c['classname']->equals($class)) {
                 return true;
             }
@@ -96,7 +92,7 @@ class UseAs
 
     public function has($classAlias)
     {
-        foreach ($this->container as $c) {
+        foreach ($this->classnames as $c) {
             if (strtolower($c['alias']) == strtolower($classAlias)) {
                 return true;
             }
@@ -107,7 +103,7 @@ class UseAs
 
     public function get($classAlias)
     {
-        foreach ($this->container as $c) {
+        foreach ($this->classnames as $c) {
             if ($c['alias'] == $classAlias) {
                 return $c['classname'];
             }
@@ -119,13 +115,13 @@ class UseAs
     public function getTokens($namespace)
     {
         $ignoreNonCompound = !$namespace;
-        if (!$this->container) {
+        if (!$this->classnames) {
             return [];
         }
 
         $phpSrc = "<?php\n";
         $suffix = '';
-        foreach ($this->container as $c) {
+        foreach ($this->classnames as $c) {
             $hasAlias = $c['alias'] != $c['classname']->nameWithoutNamespace();
             if ($ignoreNonCompound && !$hasAlias && !strpos($c['classname'], '\\')) {
                 continue;
@@ -137,7 +133,6 @@ class UseAs
             if(!$hasAlias && '\\'.$namespace == $c['classname']->ns()) {
                 continue;
             }
-
 
             $phpSrc .= 'use '.$c['classname']->nameWithNamespace();
             if ($hasAlias) {
@@ -153,7 +148,7 @@ class UseAs
 
     public function replaceClasses($map)
     {
-        foreach ($this->container as &$c) {
+        foreach ($this->classnames as &$c) {
             $classkey = (string)$c['classname'];
             if(isset($map[$classkey])) {
                 $c['classname'] = new Classname($map[$classkey]);
@@ -166,16 +161,16 @@ class UseAs
     //     echo "Replacing $from with $to\n";
     //     $fromClass = new Classname($from);
     //     // $toClass = new Classname($from);
-    //     $newContainer = [];
-    //     foreach ($this->container as $c) {
+    //     $newclassnames = [];
+    //     foreach ($this->classnames as $c) {
     //         // var_dump($c);
     //         if ($c['classname']->equals($fromClass)) {
     //             echo "Got a match\n";
     //             $c['classname'] = new Classname($to);
     //         }
-    //         $newContainer[] = $c;
+    //         $newclassnames[] = $c;
     //     }
 
-    //     $this->container = $newContainer;
+    //     $this->classnames = $newclassnames;
     // }
 }

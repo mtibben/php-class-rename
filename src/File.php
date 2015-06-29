@@ -18,8 +18,10 @@ class File
     {
         $this->tokens = token_get_all($src);
         $this->originalUse = UseAs::createFromSrc($src);
-        $this->originalUse->addDisallowedAlias($this->getClass());
         $this->newUse = clone $this->originalUse;
+        $this->originalClassname = $this->getClass();
+        $this->ignoredClassNames = $this->getDeclaredClasses();
+        $this->newUse->addDisallowedAlias($this->originalClassname);
     }
 
     public static function createFromPath($path)
@@ -30,29 +32,46 @@ class File
         return $f;
     }
 
-    public function findAndfixClasses()
+    public function findAndShortenClasses()
     {
         $classesToFix = $this->findClasses();
-        $this->fixClasses($classesToFix);
+        $this->shortenClasses($classesToFix);
     }
 
     public function getClass()
     {
-        list($null, $pos) = $this->positionForSequence([
-            [[T_CLASS,T_INTERFACE,T_TRAIT], 1],
-            [T_WHITESPACE, '*'],
-        ]);
-
-        if ($pos) {
-            return $this->findClassInNextTokens($pos+1)->name;
-        }
-
-        return '';
+        $cc = $this->getDeclaredClasses();
+        $c = array_shift($cc);
+        return $c;
     }
 
+    public function getDeclaredClasses()
+    {
+        $classes = [];
+        $pos = 0;
+        do {
+            list($first, $last) = $this->positionForSequence(
+                [
+                    [[T_CLASS,T_INTERFACE,T_TRAIT], 1],
+                    [T_WHITESPACE, '*']
+                ],
+                $pos
+            );
+
+            if ($last) {
+                $classes[] = $this->findClassInNextTokens($last+1)->name;
+                $pos = $last;
+            }
+        } while($first && $last);
+
+        return $classes;
+    }
 
     public function setClassname($classname)
     {
+        $this->originalUse->addDisallowedAlias($classname);
+        $this->newUse->addDisallowedAlias($classname);
+
         list($first, $last) = $this->positionForSequence([
             [[T_CLASS,T_INTERFACE,T_TRAIT], 1],
             [T_WHITESPACE, '*'],
@@ -109,6 +128,11 @@ class File
         ]);
 
         if ($pos) {
+            if (!$this->findClassInNextTokens($pos+1)) {
+                echo $this->path."\n";
+                debug_print_backtrace();
+                throw new Exception();
+            }
             return $this->findClassInNextTokens($pos+1)->name;
         }
 
@@ -290,6 +314,11 @@ class File
                 if ($c) {
                     $classesToFix[] = $c;
                 }
+            } elseif ($this->isTokenType($t, array(T_INSTANCEOF))) {
+                $c = $this->findClassInNextTokens($i+2);
+                if ($c) {
+                    $classesToFix[] = $c;
+                }
             } elseif ($this->isTokenType($t, array(T_FUNCTION))) {
                 $j=$i+4;
                 $c = $this->findClassInNextTokens($j); // +4 to consume whitespace, name, open brace
@@ -369,16 +398,33 @@ class File
         }
     }
 
-    public function fixClasses($classesToFix)
+    /**
+     * fixClasses replaces all classnames with the shortest version
+     * of a class name possible
+     */
+    public function shortenClasses($classesToFix)
     {
         $cumulativeOffset = 0;
 
         foreach ($classesToFix as $c) {
-            $resolvedClass = $this->resolveClass($c->name);
-            $alias = $this->newUse->getOrAddClassname($resolvedClass);
+            $replacement = [];
+
+            if (in_array($c->name, $this->ignoredClassNames)) {
+                if ($c->name == $this->originalClassname) {
+                    $replacement = [[T_STATIC, "static", 2]];
+                } else {
+                    continue;
+                }
+            }
+
+            if (!$replacement) {
+                $resolvedClass = $this->resolveClass($c->name);
+                $alias = $this->newUse->getOrAddClassname($resolvedClass);
+                $replacement = array(array(308, $alias, 2));
+            }
+
             $offset = $c->from;
             $length = $c->to - $c->from + 1;
-            $replacement = array(array(308, $alias, 2));
 
             array_splice($this->tokens, $offset+$cumulativeOffset, $length, $replacement);
 
